@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>熱鍋上的螞蟻</title>
+<style>
+  :root{
+    --bg:#161210;
+    --panel:#211a15;
+    --panel-2:#2b221b;
+    --line:#3a2f26;
+    --cream:#f4eae0;
+    --muted:#b8a591;
+    --cold:#5fc8e8;
+    --hot:#ff5a2e;
+    --flame:#ffc24b;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --cjk:"PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:radial-gradient(120% 90% at 50% -10%, #241a13 0%, var(--bg) 55%);
+    color:var(--cream);
+    font-family:var(--cjk);
+    line-height:1.6;
+    min-height:100vh;
+    padding:28px 16px 56px;
+  }
+  .wrap{max-width:920px;margin:0 auto}
+
+  header{text-align:center;margin-bottom:22px}
+  .title{
+    font-size:clamp(30px,7vw,52px);
+    font-weight:900;letter-spacing:.02em;margin:0;
+    background:linear-gradient(90deg,var(--cold),var(--flame) 55%,var(--hot));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .tag{color:var(--muted);font-size:15px;margin-top:6px}
+
+  .stage{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:14px 14px 8px;
+    box-shadow:0 18px 50px -24px #000, 0 0 60px -30px var(--hot);
+  }
+  canvas{width:100%;height:auto;display:block;border-radius:14px;touch-action:none;cursor:crosshair}
+
+  .legend{display:flex;align-items:center;gap:10px;justify-content:center;
+    margin:10px 2px 4px;color:var(--muted);font-size:12px;font-family:var(--mono)}
+  .bar{height:9px;width:180px;border-radius:6px;
+    background:linear-gradient(90deg,#264678,#2882c8,#3cbebe,#78c85a,#f0cd46,#f58c32,#e1322a)}
+
+  .readout{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+    margin:12px 0 4px;font-family:var(--mono)
+  }
+  .ro{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+  .ro .k{color:var(--muted);font-size:11px;letter-spacing:.04em}
+  .ro .v{font-size:18px;font-weight:700}
+
+  .deck{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+  .card h3{margin:0 0 12px;font-size:14px;color:var(--muted);font-weight:700;letter-spacing:.05em}
+
+  .ctrl{margin-bottom:14px}
+  .ctrl:last-child{margin-bottom:0}
+  .ctrl label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}
+  .ctrl label b{font-family:var(--mono);color:var(--flame);font-weight:700}
+  input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:6px;
+    background:var(--panel-2);border:1px solid var(--line);outline-offset:3px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+    background:var(--flame);border:2px solid #1a120c;cursor:pointer;box-shadow:0 2px 6px #0008}
+  input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;
+    background:var(--flame);border:2px solid #1a120c;cursor:pointer}
+
+  .btns{display:flex;flex-wrap:wrap;gap:8px}
+  button{font-family:var(--cjk);font-size:14px;font-weight:700;cursor:pointer;
+    border-radius:11px;padding:10px 14px;border:1px solid var(--line);
+    background:var(--panel-2);color:var(--cream);transition:transform .05s, background .15s}
+  button:hover{background:#352920}
+  button:active{transform:translateY(1px)}
+  button:focus-visible{outline:2px solid var(--flame);outline-offset:2px}
+  button.primary{background:var(--hot);border-color:#ff794f;color:#1a0d07}
+  button.primary:hover{background:#ff6c3e}
+  button.on{background:var(--flame);border-color:#ffd271;color:#23160a}
+
+  .hint{grid-column:1/-1;color:var(--muted);font-size:13px;text-align:center;
+    background:var(--panel);border:1px dashed var(--line);border-radius:14px;padding:11px}
+  .hint b{color:var(--flame)}
+
+  .eqs{margin-top:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .eq{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .eq .lab{font-size:12px;color:var(--muted);margin-bottom:8px;letter-spacing:.04em}
+  .eq .f{font-family:var(--mono);font-size:17px}
+  .eq .f .sub{font-size:.72em;vertical-align:sub}
+  .eq .f .sup{font-size:.72em;vertical-align:super}
+  .eq .note{font-size:12px;color:var(--muted);margin-top:8px}
+
+  @media(max-width:680px){
+    .readout{grid-template-columns:repeat(2,1fr)}
+    .deck{grid-template-columns:1fr}
+    .eqs{grid-template-columns:1fr}
+  }
+  @media(prefers-reduced-motion:reduce){canvas{cursor:default}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 class="title">熱鍋上的螞蟻</h1>
+    <p class="tag">一隻螞蟻、一條熱方程、一場逃命 — 拖曳火焰,看牠往最冷的地方跑</p>
+  </header>
+
+  <section class="stage">
+    <canvas id="cv" width="880" height="380"></canvas>
+    <div class="legend"><span>冷</span><div class="bar"></div><span>熱</span></div>
+  </section>
+
+  <div class="readout">
+    <div class="ro"><div class="k">螞蟻位置 X</div><div class="v" id="roPos">—</div></div>
+    <div class="ro"><div class="k">腳下溫度 u</div><div class="v" id="roTemp">—</div></div>
+    <div class="ro"><div class="k">腳下斜率 uₓ</div><div class="v" id="roGrad">—</div></div>
+    <div class="ro"><div class="k">心情</div><div class="v" id="roMood">—</div></div>
+  </div>
+
+  <div class="deck">
+    <div class="card">
+      <h3>🔥 鍋子(熱源)</h3>
+      <div class="ctrl">
+        <label>火力 A<b id="vA">0.40</b></label>
+        <input type="range" id="A" min="0" max="1" step="0.01" value="0.40">
+      </div>
+      <div class="ctrl">
+        <label>火源位置 x₀<b id="vX0">0.50</b></label>
+        <input type="range" id="X0" min="0.05" max="0.95" step="0.01" value="0.50">
+      </div>
+      <div class="ctrl">
+        <label>火焰大小 σ<b id="vSig">0.06</b></label>
+        <input type="range" id="SIG" min="0.02" max="0.20" step="0.005" value="0.06">
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🐜 螞蟻 & 操作</h3>
+      <div class="ctrl">
+        <label>爬行速度 v<b id="vV">1.0</b></label>
+        <input type="range" id="V" min="0.2" max="3" step="0.1" value="1.0">
+      </div>
+      <div class="btns">
+        <button id="play" class="primary">⏸ 暫停</button>
+        <button id="reset">↻ 重設</button>
+        <button id="multi">＋ 多重火源</button>
+        <button id="clear">🧹 清空額外火源</button>
+        <button id="edge">鍋邊:冷卻</button>
+      </div>
+    </div>
+
+    <div class="hint">
+      在鍋子上 <b>拖曳</b> 就能搬動火焰,螞蟻會立刻轉向逃跑。開「多重火源」後,
+      <b>每點一下丟一把火</b> — 試試看能不能把螞蟻包圍起來。
+    </div>
+  </div>
+
+  <div class="eqs">
+    <div class="eq">
+      <div class="lab">環境 · PDE(鍋子)</div>
+      <div class="f">u<span class="sub">t</span> = u<span class="sub">xx</span> + f(x,t)</div>
+      <div class="note">有限差分法:每步先更新整鍋溫度。</div>
+    </div>
+    <div class="eq">
+      <div class="lab">熱源 · 高斯分佈</div>
+      <div class="f">f(x) = A·e<span class="sup">−(x−x₀)²/2σ²</span></div>
+      <div class="note">A 火力強度、x₀ 中心、σ 集中程度。</div>
+    </div>
+    <div class="eq">
+      <div class="lab">螞蟻 · ODE(追低溫)</div>
+      <div class="f">X′(t) = −v·u<span class="sub">x</span>(X,t)</div>
+      <div class="note">往溫度斜率反方向跑(最陡下坡)。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- model ----
+  const N = 240;
+  const ALPHA = 0.20;        // diffusion CFL factor (stable < 0.5)
+  const SUBSTEPS = 25;       // time-steps per animation frame
+  const COOL = 0.0006;       // gentle ambient loss
+  const GAIN = 26;           // ant speed scaling
+  const MAXDX = 2.5;         // cap cells/frame (anti-jitter)
+
+  let u = new Float32Array(N);
+  let un = new Float32Array(N);
+  let f = new Float32Array(N);
+  let X = N * 0.5 + 7;       // ant position (grid units), slightly off-centre
+  let uMax = 0.5;            // smoothed max for colour scaling
+  let running = true;
+  let dirichlet = true;      // cool edges (u=0) vs insulated
+  let multiMode = false;
+  let extras = [];           // {x0, sigma, A}
+
+  // params from UI
+  const P = { A:0.40, x0:0.50, sig:0.06, v:1.0 };
+  const heatRate = a => 0.004 + a * 0.046;          // A slider -> per-substep peak
+  const sigCells = s => Math.max(2, s * N);
+
+  function rebuildSource(){
+    const peak = heatRate(P.A), c = P.x0 * (N-1), sg = sigCells(P.sig);
+    for (let i=0;i<N;i++){
+      const d = i - c;
+      f[i] = peak * Math.exp(-(d*d)/(2*sg*sg));
+    }
+    for (const e of extras){
+      const sg2 = e.sigma, c2 = e.x0;
+      for (let i=0;i<N;i++){
+        const d = i - c2;
+        f[i] += e.A * Math.exp(-(d*d)/(2*sg2*sg2));
+      }
+    }
+  }
+
+  function step(){
+    for (let s=0;s<SUBSTEPS;s++){
+      for (let i=1;i<N-1;i++){
+        un[i] = u[i] + ALPHA*(u[i+1]-2*u[i]+u[i-1]) + f[i] - COOL*u[i];
+      }
+      if (dirichlet){ un[0]=0; un[N-1]=0; }
+      else { un[0]=un[1]; un[N-1]=un[N-2]; }
+      const tmp=u; u=un; un=tmp;
+    }
+    // ant: move down the temperature gradient
+    const g = gradAt(X);
+    let dX = -P.v * (g / Math.max(uMax,1e-3)) * GAIN;
+    if (Math.abs(g) < 1e-4 && !reduce) dX += (Math.random()-0.5)*0.6; // tiny scurry
+    dX = Math.max(-MAXDX, Math.min(MAXDX, dX));
+    X = Math.max(2, Math.min(N-3, X + dX));
+  }
+
+  function gradAt(x){
+    const i = Math.max(1, Math.min(N-3, Math.floor(x)));
+    const fr = x - i;
+    const gL = (u[i+1]-u[i-1])/2;
+    const gR = (u[i+2]-u[i])/2;
+    return gL*(1-fr) + gR*fr;
+  }
+  function tempAt(x){
+    const i = Math.max(0, Math.min(N-2, Math.floor(x)));
+    const fr = x - i;
+    return u[i]*(1-fr) + u[i+1]*fr;
+  }
+
+  // ---- colour ----
+  const stops = [
+    [0.00,[38,70,120]],[0.18,[40,130,200]],[0.38,[60,190,190]],
+    [0.55,[120,200,90]],[0.70,[240,205,70]],[0.85,[245,140,50]],[1.00,[225,50,40]]
+  ];
+  function thermal(t){
+    t = t<0?0:t>1?1:t;
+    for (let k=0;k<stops.length-1;k++){
+      const [p0,c0]=stops[k],[p1,c1]=stops[k+1];
+      if (t<=p1){
+        const r=(t-p0)/(p1-p0);
+        return `rgb(${c0[0]+(c1[0]-c0[0])*r|0},${c0[1]+(c1[1]-c0[1])*r|0},${c0[2]+(c1[2]-c0[2])*r|0})`;
+      }
+    }
+    return 'rgb(225,50,40)';
+  }
+
+  // ---- layout / hi-dpi ----
+  let W=880, H=380, mg=26, rodTop, rodBot, plotTop, plotBot;
+  function setup(){
+    const dpr = Math.min(2, window.devicePixelRatio||1);
+    const cssW = cv.clientWidth || 880;
+    W = cssW; H = Math.round(cssW * 0.43); H = Math.max(300, Math.min(420, H));
+    cv.width = W*dpr; cv.height = H*dpr;
+    cv.style.height = H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    rodTop = H-118; rodBot = rodTop+42;
+    plotTop = 18; plotBot = rodTop-30;
+  }
+  const gx = i => mg + (i/(N-1))*(W-2*mg);
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    // current max for scaling
+    let m=0; for (let i=0;i<N;i++) if (u[i]>m) m=u[i];
+    uMax = Math.max(0.5, uMax*0.92 + m*0.08);
+
+    // axis labels
+    ctx.fillStyle='#9c8b78'; ctx.font='12px ui-monospace,monospace'; ctx.textAlign='left';
+    ctx.fillText('溫度 u(x)', mg, plotTop+2);
+    ctx.textAlign='right'; ctx.fillText('位置 x →', W-mg, rodBot+34);
+    ctx.strokeStyle='#352b22'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(mg,plotBot); ctx.lineTo(W-mg,plotBot); ctx.stroke();
+
+    // temperature curve (filled)
+    const sy = t => plotBot - (t/uMax)*(plotBot-plotTop);
+    ctx.beginPath(); ctx.moveTo(gx(0), plotBot);
+    for (let i=0;i<N;i++) ctx.lineTo(gx(i), sy(u[i]));
+    ctx.lineTo(gx(N-1), plotBot); ctx.closePath();
+    const grad = ctx.createLinearGradient(0,plotTop,0,plotBot);
+    grad.addColorStop(0,'rgba(255,90,46,.55)'); grad.addColorStop(1,'rgba(95,200,232,.10)');
+    ctx.fillStyle=grad; ctx.fill();
+    ctx.beginPath();
+    for (let i=0;i<N;i++){ const x=gx(i),y=sy(u[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+    ctx.strokeStyle='#ffd9bf'; ctx.lineWidth=2; ctx.stroke();
+
+    // the rod (heat map)
+    const x0=gx(0), wTot=gx(N-1)-x0, cw=wTot/(N-1)+1.2;
+    ctx.save();
+    roundRect(x0-2, rodTop-2, wTot+4, rodBot-rodTop+4, 10); ctx.clip();
+    for (let i=0;i<N;i++){
+      ctx.fillStyle=thermal(u[i]/uMax);
+      ctx.fillRect(gx(i)-cw/2, rodTop, cw, rodBot-rodTop);
+    }
+    ctx.restore();
+    ctx.strokeStyle='#5a4738'; ctx.lineWidth=2;
+    roundRect(x0-2, rodTop-2, wTot+4, rodBot-rodTop+4, 10); ctx.stroke();
+
+    // flames under the rod
+    drawFlame(P.x0*(N-1), P.sig, P.A, true);
+    for (const e of extras) drawFlame(e.x0, e.sigma/N, e.A/0.05, false);
+
+    // ant + mood
+    const ax = gx(X), ay = rodTop-4;
+    const localT = tempAt(X), r = localT/Math.max(uMax,1e-3);
+    const g = gradAt(X);
+    // direction arrow (where it wants to run)
+    if (Math.abs(g)>1e-4){
+      const dir = -Math.sign(g);
+      ctx.strokeStyle='#fff'; ctx.fillStyle='#fff'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(ax,ay-34); ctx.lineTo(ax+dir*26,ay-34); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ax+dir*26,ay-34); ctx.lineTo(ax+dir*18,ay-38);
+      ctx.lineTo(ax+dir*18,ay-30); ctx.closePath(); ctx.fill();
+    }
+    ctx.font='26px serif'; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+    const wig = reduce?0:Math.sin(performance.now()/90)*1.5;
+    ctx.fillText('🐜', ax, ay+wig);
+    let mood='🐜';
+    if (r<0.12) mood='😌'; else if (r<0.45) mood='🐜'; else if (r<0.78) mood='😅'; else mood='🥵';
+    ctx.font='22px serif'; ctx.fillText(mood, ax, ay-44);
+
+    // readouts
+    setText('roPos', (X/(N-1)).toFixed(2));
+    setText('roTemp', localT.toFixed(2));
+    setText('roGrad', (g*(N-1)).toFixed(2));
+    setText('roMood', r<0.12?'放鬆':r<0.45?'警戒':r<0.78?'緊張':'快燒焦了!');
+  }
+
+  function drawFlame(ci, sigNorm, aNorm, main){
+    const x = gx(ci), y = rodBot+4;
+    const size = 18 + sigNorm*N*0.6 + aNorm*16;
+    const flick = reduce?0:(Math.sin(performance.now()/70+ci)*0.08+(Math.random()-0.5)*0.06);
+    ctx.save();
+    ctx.globalAlpha = main?1:0.92;
+    ctx.font = `${size*(1+flick)|0}px serif`;
+    ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.shadowColor='rgba(255,120,40,.7)'; ctx.shadowBlur=18;
+    ctx.fillText('🔥', x, y);
+    ctx.restore();
+  }
+
+  function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+  const setText=(id,t)=>{document.getElementById(id).textContent=t;};
+
+  // ---- loop ----
+  function frame(){ if (running) step(); draw(); requestAnimationFrame(frame); }
+
+  // ---- interaction ----
+  let dragging=false;
+  function canvasToGrid(ev){
+    const rect=cv.getBoundingClientRect();
+    const px=((ev.clientX-rect.left)); 
+    let i=Math.round((px-mg)/(W-2*mg)*(N-1));
+    return Math.max(0,Math.min(N-1,i));
+  }
+  function onPointer(ev, isDown){
+    if (ev.clientY===undefined) return;
+    const rect=cv.getBoundingClientRect();
+    const y=ev.clientY-rect.top;
+    if (isDown && (y<rodTop-30 || y>rodBot+50)) return; // only react near the rod/flames
+    const gi=canvasToGrid(ev);
+    if (multiMode && isDown){
+      extras.push({x0:gi, sigma:sigCells(P.sig), A:heatRate(P.A)});
+      rebuildSource(); return;
+    }
+    P.x0 = gi/(N-1);
+    document.getElementById('X0').value=P.x0.toFixed(2);
+    document.getElementById('vX0').textContent=P.x0.toFixed(2);
+    rebuildSource();
+  }
+  cv.addEventListener('pointerdown', e=>{dragging=true; cv.setPointerCapture(e.pointerId); onPointer(e,true);});
+  cv.addEventListener('pointermove', e=>{ if(dragging && !multiMode) onPointer(e,false);});
+  cv.addEventListener('pointerup', ()=>dragging=false);
+
+  // sliders
+  const bind=(id, key, lab, fmt=(x)=>x.toFixed(2))=>{
+    const el=document.getElementById(id), out=document.getElementById(lab);
+    el.addEventListener('input', ()=>{P[key]=parseFloat(el.value); out.textContent=fmt(P[key]); rebuildSource();});
+  };
+  bind('A','A','vA'); bind('X0','x0','vX0'); bind('SIG','sig','vSig',x=>x.toFixed(3));
+  document.getElementById('V').addEventListener('input',e=>{P.v=parseFloat(e.target.value);
+    document.getElementById('vV').textContent=P.v.toFixed(1);});
+
+  // buttons
+  const playBtn=document.getElementById('play');
+  playBtn.addEventListener('click',()=>{running=!running; playBtn.textContent=running?'⏸ 暫停':'▶ 開始';
+    playBtn.classList.toggle('primary', !running);});
+  document.getElementById('reset').addEventListener('click',()=>{
+    u.fill(0); un.fill(0); X=N*0.5+7; uMax=0.5; extras=[]; rebuildSource();});
+  const multiBtn=document.getElementById('multi');
+  multiBtn.addEventListener('click',()=>{multiMode=!multiMode; multiBtn.classList.toggle('on',multiMode);
+    multiBtn.textContent=multiMode?'＋ 多重火源(開)':'＋ 多重火源';});
+  document.getElementById('clear').addEventListener('click',()=>{extras=[]; rebuildSource();});
+  const edgeBtn=document.getElementById('edge');
+  edgeBtn.addEventListener('click',()=>{dirichlet=!dirichlet;
+    edgeBtn.textContent= dirichlet?'鍋邊:冷卻':'鍋邊:隔熱';});
+
+  // boot
+  window.addEventListener('resize', ()=>{setup();});
+  setup(); rebuildSource(); requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
